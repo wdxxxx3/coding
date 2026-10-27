@@ -1,0 +1,24 @@
+diff --git a/control/longitudinal/speed_pid.cc b/control/longitudinal/speed_pid.cc
+--- a/control/longitudinal/speed_pid.cc
++++ b/control/longitudinal/speed_pid.cc
+@@ -1,15 +1,13 @@
+ // 纵向速度闭环 PID：输出为归一化的驱动/制动指令，[-1, 1]，正为油门，负为制动
+ #include <algorithm>
+ #include "speed_pid.h"
+ 
+-double SpeedPid::Compute(double target, double measured, double dt) {
+-  if (dt <= 0.0) return last_output_;
+-  double error = target - measured;
++double SpeedPid::Compute(double target_speed, double measured_speed, double dt) {
++  const double error = target_speed - measured_speed;
+   integral_ += error * dt;
+-  integral_ = std::clamp(integral_, -kIntMax, kIntMax);
+-  double derivative = -(measured - last_measured_) / dt;
+-  last_measured_ = measured;
+-  double out = kp_ * error + ki_ * integral_ + kd_ * derivative;
++  const double derivative = (error - last_error_) / dt;
++  last_error_ = error;
++  const double out = kp_ * error + ki_ * integral_ + kd_ * derivative;
+   last_output_ = std::clamp(out, kOutMin, kOutMax);
+   return last_output_;
+ }

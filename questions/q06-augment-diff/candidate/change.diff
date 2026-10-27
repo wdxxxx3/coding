@@ -1,0 +1,42 @@
+diff --git a/training/det3d/dataset.py b/training/det3d/dataset.py
+--- a/training/det3d/dataset.py
++++ b/training/det3d/dataset.py
+@@ -1,24 +1,37 @@
+ import numpy as np
+ 
+ 
+ class LidarDetDataset:
+     """3D 检测训练集。
+     points: (N, 4) = x, y, z, intensity，车体坐标系，x 向前，y 向左
+     boxes:  (M, 7) = x, y, z, l, w, h, yaw，yaw 为绕 z 轴逆时针角度
+     """
+ 
+     def __init__(self, index_file, training=True):
+         self.samples = self.read_index(index_file)
+         self.training = training
+         self.cache = {}
+ 
+     def load(self, idx):
+         if idx not in self.cache:
+             self.cache[idx] = self.read_sample(self.samples[idx])
+         return self.cache[idx]  # (points, boxes, labels)
+ 
+     def __getitem__(self, idx):
+         points, boxes, labels = self.load(idx)
++        if self.training and np.random.rand() < 0.5:
++            # 左右翻转
++            points[:, 1] = -points[:, 1]
++            boxes[:, 1] = -boxes[:, 1]
++        if self.training:
++            # 全局旋转 [-45°, 45°]
++            angle = np.random.uniform(-np.pi / 4, np.pi / 4)
++            rot = np.array([[np.cos(angle), -np.sin(angle)],
++                            [np.sin(angle), np.cos(angle)]])
++            points[:, :2] = points[:, :2] @ rot
++            boxes[:, :2] = boxes[:, :2] @ rot
++            boxes[:, 6] += angle
+         points = self.filter_range(points)
+-        boxes, labels = self.filter_boxes(boxes, labels)
++        # 去掉低反射率噪点
++        points = points[points[:, 3] > 0.1]
+         return points, boxes, labels

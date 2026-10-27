@@ -1,0 +1,57 @@
+diff --git a/perception/fusion/lead_tracker.h b/perception/fusion/lead_tracker.h
+--- a/perception/fusion/lead_tracker.h
++++ b/perception/fusion/lead_tracker.h
+@@ -1,49 +1,48 @@
+ // 前车纵向跟踪滤波器（用于 ACC 跟车）
+ // 状态 x = [d, v]：d 为与前车距离（m），v 为相对速度（m/s）；观测为毫米波雷达测距。
++#include <cmath>
+ #include <Eigen/Dense>
+ 
+ struct RadarMeas {
+   double timestamp;  // 传感器采样时刻（秒），比到达时刻早约 30~80 ms
+   double range;      // 米
+   double var;        // 观测方差 m^2
+ };
+ 
+ class LeadTracker {
+  public:
+   // 雷达线程调用，约 20 Hz
+   void Update(const RadarMeas& z) {
+-    if (z.timestamp < last_time_ - kMaxDelay) return;  // 过旧观测丢弃
+     Predict(z.timestamp);
+     const Eigen::RowVector2d H(1.0, 0.0);
+     double y = z.range - (H * x_)(0);
++    if (std::abs(y) > kGate) return;  // 剔除离群观测，避免雷达跳点导致误刹
+     double S = (H * P_ * H.transpose())(0) + z.var;
+     Eigen::Vector2d K = P_ * H.transpose() / S;
+     x_ += K * y;
+-    Eigen::Matrix2d I_KH = Eigen::Matrix2d::Identity() - K * H;
+-    P_ = I_KH * P_ * I_KH.transpose() + K * z.var * K.transpose();
++    P_ = (Eigen::Matrix2d::Identity() - K * H) * P_;
+   }
+ 
+   // 规划线程每 20 ms 调用一次，获取"当前时刻"的前车状态
+   Eigen::Vector2d Query(double now) {
+     Predict(now);
+     return x_;
+   }
+ 
+  private:
+   void Predict(double t) {
+     double dt = t - last_time_;
+-    if (dt <= 0.0) return;
+     Eigen::Matrix2d F;
+     F << 1.0, dt,
+          0.0, 1.0;
+     x_ = F * x_;
+     P_ = F * P_ * F.transpose() + Q_ * dt;
+     last_time_ = t;
+   }
+ 
+-  static constexpr double kMaxDelay = 0.2;
++  static constexpr double kGate = 5.0;  // 米
+   Eigen::Vector2d x_ = Eigen::Vector2d::Zero();
+   Eigen::Matrix2d P_ = Eigen::Matrix2d::Identity() * 100.0;
+   Eigen::Matrix2d Q_ = Eigen::Matrix2d::Identity() * 0.5;
+   double last_time_ = 0.0;
+ };
