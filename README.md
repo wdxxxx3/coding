@@ -4,6 +4,8 @@
 
 > ⚠️ 本仓库包含面试答案，请保持**私有**，只对面试官开放。
 
+> **模型岗**（端到端 / SFT / VLM / VLA / Diffusion / World model / RL 后训练）：见 [model-track/README.md](model-track/README.md)，按简历选题的原子卡。
+
 ## 先读这些
 | 文档 | 内容 |
 |---|---|
